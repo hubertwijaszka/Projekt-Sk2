@@ -12,7 +12,7 @@ public Okno(){
     super("Warcaby");
     super.setSize(szerokosc, wysokosc);
     super.setLocationByPlatform(true);
-    plansza = new Plansza(this);
+    plansza = new Plansza(this,false);
     this.add(plansza);
 
 

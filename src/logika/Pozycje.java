@@ -6,7 +6,7 @@ public class Pozycje {
     private int czarneId = 2;
     private int bialeKrolId = 3;
     private int czarneKrolId = 4;
-    int[][] wspolrzedne = new int[8][8];
+    private int[][] wspolrzedne = new int[8][8];
 
     public Pozycje() {
         for (int y = 0; y < 8; y++) {
@@ -20,6 +20,9 @@ public class Pozycje {
 
     public int getIndeks(int x, int y) {
         return wspolrzedne[x][y];
+    }
+    public void setIndeks(int x, int y,int indeks) {
+        wspolrzedne[x][y]=indeks;
     }
 
     public int getPusteId() {
