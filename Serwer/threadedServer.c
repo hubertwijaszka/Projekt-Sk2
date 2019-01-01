@@ -14,7 +14,8 @@
 #include <string.h>
 #define SERVER_PORT 1234
 #define QUEUE_SIZE 5
-
+#define FD_TAB_SIZE 200
+int fd[FD_TAB_SIZE ][2];
 int count=0;
 pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -22,33 +23,109 @@ pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 struct thread_data_t
 {
     int connection_socket_descriptor;
-	int pipeIndex;
+	int pipe_index;
 };
 
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
 void *WhiteThreadBehavior(void *t_data)
 {
     pthread_detach(pthread_self());
-    struct thread_data_t *th_data = (struct thread_data_t*)t_data;
-    int n = write((*th_data).connection_socket_descriptor,"BIALY\n",7);
+    struct thread_data_t *th_data = t_data;
+    int n = write((*th_data).connection_socket_descriptor,"BIALY\n",6);
         if (n < 0) {
 			fprintf(stderr,"Błąd przy wysylaniu koloru");
 			exit(-1);
 		}
+	while(1){
+		char ruch[5];
+		int ilosc_odczytanych_znakow_suma=0;
+		//odczyt ruchu z serwera ruch[0]-wspolrzedna x pola z ktorego wykonano ruch,ruch[1]-wspolrzedna y pola z ktorego wykonano ruch
+		//dalej analogicznie dla pola na ktory wykonano ruch 
+		while(ilosc_odczytanych_znakow_suma!=5){
+			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			if (ilosc_odczytanych_znakow < 0) {
+				fprintf(stderr,"Błąd przy odczytaniu ruchu");
+				exit(-1);
+			}
+		}
+		
+		//wyslanie ruchu do watku czarnych
+		int n2 = write(fd[(*th_data).pipe_index][1],ruch,5);
+			if (n2 != 5) {
+				fprintf(stderr,"Błąd przy wysylaniu ruchu do gracza czarnego");
+				exit(-1);
+			}
+		//odebranie ruchu od watku czarnych
+		ruch[0] = '\0';
+		ilosc_odczytanych_znakow_suma=0;
+		while(ilosc_odczytanych_znakow_suma!=5){
+			int ilosc_odczytanych_znakow=read(fd[(*th_data).pipe_index-1][0],&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			if (ilosc_odczytanych_znakow < 0) {
+				fprintf(stderr,"Błąd przy odczytaniu ruchu od czarnych");
+				exit(-1);
+			}
+		}
+		//wyslanie ruchu do klienta 
+		 n = write((*th_data).connection_socket_descriptor,ruch,5);
+			if (n != 5) {
+				fprintf(stderr,"Błąd przy wysylaniu ruchu bialych do serwera");
+				exit(-1);
+			}
+	}
+	
+	
 
     pthread_exit(NULL);
 }
 void *BlackThreadBehavior(void *t_data)
 {
     pthread_detach(pthread_self());
-    struct thread_data_t *th_data = (struct thread_data_t*)t_data;
+    struct thread_data_t *th_data = t_data;
     //dostęp do pól struktury: (*th_data).pole
 	int n = write((*th_data).connection_socket_descriptor,"CZARNY\n",7);
         if (n < 0) {
 			fprintf(stderr,"Błąd przy wysylaniu koloru");
 			exit(-1);
 		}
-
+	while(1){
+		//odebranie ruchu od watku bialych
+		char ruch[5];
+		int ilosc_odczytanych_znakow_suma=0;
+		while(ilosc_odczytanych_znakow_suma!=5){
+			int ilosc_odczytanych_znakow=read(fd[(*th_data).pipe_index+1][0],&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			if (ilosc_odczytanych_znakow < 0) {
+				fprintf(stderr,"Błąd przy odczytaniu ruchu od czarnych");
+				exit(-1);
+			}
+		}
+		//wyslanie ruchu do klienta
+		int n = write((*th_data).connection_socket_descriptor,ruch,5);
+			if (n != 5) {
+				fprintf(stderr,"Błąd przy wysylaniu ruchu czarnych do klienta");
+				exit(-1);
+			}
+		ruch[0] = '\0';
+		ilosc_odczytanych_znakow_suma=0;
+		//odczyt ruchu od klienta ruch[0]-wspolrzedna x pola z ktorego wykonano ruch,ruch[1]-wspolrzedna y pola z ktorego wykonano ruch
+		//dalej analogicznie dla pola na ktory wykonano ruch 
+		while(ilosc_odczytanych_znakow_suma!=5){
+			
+			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			if (ilosc_odczytanych_znakow < 0) {
+				fprintf(stderr,"Błąd przy odczytaniu ruchu");
+				exit(-1);
+			}
+		}
+		//wyslanie ruchu do watku bialych
+		 n = write(fd[(*th_data).pipe_index][1],ruch,5);
+			if (n != 5) {
+				fprintf(stderr,"Błąd przy wysylaniu ruchu do gracza czarnego");
+				exit(-1);
+	}}
     pthread_exit(NULL);
 }
 
@@ -59,19 +136,30 @@ void handleConnection(int connection_socket_descriptor, struct sockaddr_in *clie
 	count++;
 	int create_result=0;
     //dane, które zostaną przekazane do wątku
-    struct thread_data_t t_data;
-	t_data.connection_socket_descriptor=connection_socket_descriptor;
+    struct thread_data_t *t_data=malloc(sizeof(struct thread_data_t));
+	t_data->connection_socket_descriptor=connection_socket_descriptor;
 	//przekazujemy indeks w tablicy deskryptorów, wskazujący na deskryptor za pomoca ktorego beda komunikowac sie watki
-	t_data.pipeIndex=(count-1)/2;
+	t_data->pipe_index=count-1;
     //uchwyt na wątek
     pthread_t thread1;
 	//przypadek gdy watek musi czekac na zgloszenie kolejnego gracza, ponieważ brakuje pary- otrzymuje czarny kolor pionkow 
 	if(count%2==1){
-		create_result = pthread_create(&thread1, NULL, BlackThreadBehavior, &t_data);
+		//tworzenie kanalow do komunikacji miedzy watkiem bialym i czarnym
+		int result = pipe (&fd[count-1][0]);
+		if (result < 0){
+			perror("pipe ");
+			exit(1);
+	   }
+	   result = pipe (&fd[count][0]);
+		if (result < 0){
+			perror("pipe ");
+			exit(1);
+	   }
+		create_result = pthread_create(&thread1, NULL, BlackThreadBehavior, t_data);
 	}
 	//przypadek gdy mamy dwóch niesparowanych graczy- drugi gracz otrzymuje kolor bialy
 	else{
-		create_result = pthread_create(&thread1, NULL, WhiteThreadBehavior, &t_data);
+		create_result = pthread_create(&thread1, NULL, WhiteThreadBehavior, t_data);
 	}
     if (create_result){
        fprintf(stderr,"Błąd przy próbie utworzenia wątku, kod błędu: %d\n", create_result);
