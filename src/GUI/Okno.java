@@ -17,7 +17,9 @@ public class Okno extends JFrame {
     private int szerokosc = 500;
     private Plansza plansza;
     private JButton jButton = new JButton("Ustaw polaczenie");
-    JPanel layout = new JPanel(new BorderLayout());
+    private JPanel layout = new JPanel(new BorderLayout());
+    private BufferedReader reader=null;
+    private PrintWriter writer=null;
     public Okno() {
         super("Warcaby");
         super.setSize(szerokosc, wysokosc);
@@ -36,7 +38,8 @@ public class Okno extends JFrame {
         KonfSieci konfSieci = (KonfSieci) e.getSource();
         try {
             Socket clientSocket = new Socket(konfSieci.getDestinationHost(), konfSieci.getDestinationPort());
-            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            writer = new PrintWriter(clientSocket.getOutputStream(), true);
             String serverMessage = reader.readLine();
             layout.remove(plansza);
             if(serverMessage.equals("BIALY")){
@@ -46,13 +49,16 @@ public class Okno extends JFrame {
                 this.plansza=new Plansza(this,true);
             }
             layout.add(plansza,BorderLayout.CENTER);
+            konfSieci.setMessage("udalo sie polaczyc");
             this.revalidate();
             this.repaint();
-            throw new NullPointerException();
+            if(serverMessage.equals("CZARNY")){
+                plansza.ruchPrzeciwnika();
+            }
 
         }
         catch(Exception e1){
-            konfSieci.setMessage("dasdssd");
+            konfSieci.setMessage("blad przy ustawianiu poloczenia");
         }
     }
 
@@ -72,5 +78,21 @@ public class Okno extends JFrame {
         }
 
 
+    }
+
+    public BufferedReader getReader() {
+        return reader;
+    }
+
+    public void setReader(BufferedReader reader) {
+        this.reader = reader;
+    }
+
+    public PrintWriter getWriter() {
+        return writer;
+    }
+
+    public void setWriter(PrintWriter writer) {
+        this.writer = writer;
     }
 }
