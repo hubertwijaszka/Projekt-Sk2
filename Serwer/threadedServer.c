@@ -41,15 +41,21 @@ void *WhiteThreadBehavior(void *t_data)
 		int ilosc_odczytanych_znakow_suma=0;
 		//odczyt ruchu z serwera ruch[0]-wspolrzedna x pola z ktorego wykonano ruch,ruch[1]-wspolrzedna y pola z ktorego wykonano ruch
 		//dalej analogicznie dla pola na ktory wykonano ruch 
-		while(ilosc_odczytanych_znakow_suma!=5){
-			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+		while(1){
+			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],1);
 			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			fprintf(stderr,"petla while przeczytane znaki:  %s", ruch);
+			if(ruch[ilosc_odczytanych_znakow_suma-1]=='\n'){
+				break;
+			}
 			if (ilosc_odczytanych_znakow < 0) {
 				fprintf(stderr,"Błąd przy odczytaniu ruchu");
 				exit(-1);
+				
 			}
 		}
-		
+		//sprawdzanie czy nadeslano wiadomosc o koncu gry
+		if(ruch[0]=='0' &&ruch[1]=='0' &&ruch[2]=='0' &&ruch[3]=='0') break;
 		//wyslanie ruchu do watku czarnych
 		int n2 = write(fd[(*th_data).pipe_index][1],ruch,5);
 			if (n2 != 5) {
@@ -75,8 +81,11 @@ void *WhiteThreadBehavior(void *t_data)
 			}
 	}
 	
-	
-
+	//zwolnienie pamieci
+	close(fd[(*th_data).pipe_index][1]);
+	close(fd[(*th_data).pipe_index][0]);
+	free(t_data);
+	fprintf(stderr,"koniec");
     pthread_exit(NULL);
 }
 void *BlackThreadBehavior(void *t_data)
@@ -111,21 +120,31 @@ void *BlackThreadBehavior(void *t_data)
 		ilosc_odczytanych_znakow_suma=0;
 		//odczyt ruchu od klienta ruch[0]-wspolrzedna x pola z ktorego wykonano ruch,ruch[1]-wspolrzedna y pola z ktorego wykonano ruch
 		//dalej analogicznie dla pola na ktory wykonano ruch 
-		while(ilosc_odczytanych_znakow_suma!=5){
+		while(1){
 			
-			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],5-ilosc_odczytanych_znakow_suma);
+			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],1);
 			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
+			if(ruch[ilosc_odczytanych_znakow_suma-1]=='\n'){
+				break;
+			}
 			if (ilosc_odczytanych_znakow < 0) {
 				fprintf(stderr,"Błąd przy odczytaniu ruchu");
 				exit(-1);
 			}
 		}
+		//sprawdzanie czy zostala przeslana wiadomosc o koncu gry
+		if(ruch[0]=='0' &&ruch[1]=='0' &&ruch[2]=='0' &&ruch[3]=='0') break;
 		//wyslanie ruchu do watku bialych
 		 n = write(fd[(*th_data).pipe_index][1],ruch,5);
 			if (n != 5) {
 				fprintf(stderr,"Błąd przy wysylaniu ruchu do gracza czarnego");
 				exit(-1);
 	}}
+	//zwolnienie pamieci
+	close(fd[(*th_data).pipe_index][1]);
+	close(fd[(*th_data).pipe_index][0]);
+	free(t_data);
+	fprintf(stderr,"koniec");
     pthread_exit(NULL);
 }
 
