@@ -17,7 +17,6 @@
 #define FD_TAB_SIZE 200
 int fd[FD_TAB_SIZE ][2];
 int count=0;
-pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //struktura zawierająca dane, które zostaną przekazane do wątku
 struct thread_data_t
@@ -44,7 +43,6 @@ void *WhiteThreadBehavior(void *t_data)
 		while(1){
 			int ilosc_odczytanych_znakow=read((*th_data).connection_socket_descriptor,&ruch[ilosc_odczytanych_znakow_suma],1);
 			ilosc_odczytanych_znakow_suma=ilosc_odczytanych_znakow_suma+ilosc_odczytanych_znakow;
-			fprintf(stderr,"petla while przeczytane znaki:  %s", ruch);
 			if(ruch[ilosc_odczytanych_znakow_suma-1]=='\n'){
 				break;
 			}
@@ -85,7 +83,6 @@ void *WhiteThreadBehavior(void *t_data)
 	close(fd[(*th_data).pipe_index][1]);
 	close(fd[(*th_data).pipe_index][0]);
 	free(t_data);
-	fprintf(stderr,"koniec");
     pthread_exit(NULL);
 }
 void *BlackThreadBehavior(void *t_data)
@@ -144,14 +141,12 @@ void *BlackThreadBehavior(void *t_data)
 	close(fd[(*th_data).pipe_index][1]);
 	close(fd[(*th_data).pipe_index][0]);
 	free(t_data);
-	fprintf(stderr,"koniec");
     pthread_exit(NULL);
 }
 
 //funkcja obsługująca połączenie z nowym klientem
 void handleConnection(int connection_socket_descriptor, struct sockaddr_in *client_adress) {
-    //blokowanie mutexa, inkrementowanie count
-	pthread_mutex_lock(&count_mutex);
+    
 	count++;
 	int create_result=0;
     //dane, które zostaną przekazane do wątku
@@ -172,6 +167,7 @@ void handleConnection(int connection_socket_descriptor, struct sockaddr_in *clie
 	   result = pipe (&fd[count][0]);
 		if (result < 0){
 			perror("pipe ");
+			perror("pipe ");
 			exit(1);
 	   }
 		create_result = pthread_create(&thread1, NULL, BlackThreadBehavior, t_data);
@@ -184,12 +180,6 @@ void handleConnection(int connection_socket_descriptor, struct sockaddr_in *clie
        fprintf(stderr,"Błąd przy próbie utworzenia wątku, kod błędu: %d\n", create_result);
        exit(-1);
     }
-	pthread_mutex_unlock(&count_mutex);
-	
-	
-	
-
-    //TODO (przy zadaniu 1) odbieranie -> wyświetlanie albo klawiatura -> wysyłanie
 }
 
 int main(int argc, char* argv[])
